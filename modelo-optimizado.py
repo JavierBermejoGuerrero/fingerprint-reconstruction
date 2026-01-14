@@ -17,9 +17,9 @@ tf.config.threading.set_inter_op_parallelism_threads(4)
 
 # CONFIG (AJUSTADO A CPU)
 IMG_SIZE = 96          # reduce costo computacional
-BATCH_SIZE = 8         # crítico en CPU
-EPOCHS = 30            # EarlyStopping corta antes
-LR = 1e-3
+BATCH_SIZE = 12         # crítico en CPU
+EPOCHS = 120            # EarlyStopping corta antes
+LR = 3e-4
 
 DATA_PATH = "datos_entrenamiento/"
 OUTPUT_DIR = "outputs"
@@ -31,14 +31,14 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 def degrade_image(img):
     img = cv2.GaussianBlur(img, (3, 3), 0)
 
-    noise = np.random.normal(0, 5, img.shape)
+    noise = np.random.normal(0, 3, img.shape)
     img = img + noise
 
-    h, w = img.shape
-    x = np.random.randint(0, w // 8)
-    y = np.random.randint(0, h // 8)
+    alpha = np.random.uniform(0.9, 1.1)
+    beta = np.random.uniform(-5, 5)
+    img = cv2.convertScaleAbs(img, alpha=alpha, beta=beta)
 
-    img = img[y:y + int(0.8 * h), x:x + int(0.8 * w)]
+    img = np.clip(img, 0, 255)
     img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
 
     return img
@@ -60,13 +60,17 @@ def load_data():
             continue
 
         img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
-        degraded = degrade_image(img)
-
-        X.append(degraded)
-        y.append(img)
+        
+        # Data augmentation x4
+        for _ in range(4):
+            degraded = degrade_image(img)
+            X.append(degraded)
+            y.append(img)
 
     X = np.array(X, dtype="float32") / 255.0
     y = np.array(y, dtype="float32") / 255.0
+
+    print(f"Total muestras generadas: {len(X)}")
 
     X = X[..., np.newaxis]
     y = y[..., np.newaxis]
@@ -128,12 +132,12 @@ def main():
     callbacks = [
         EarlyStopping(
             monitor="val_loss",
-            patience=8,
+            patience=20,
             restore_best_weights=True
         ),
         ReduceLROnPlateau(
             monitor="val_loss",
-            patience=4,
+            patience=8,
             factor=0.5,
             min_lr=1e-6,
             verbose=1
