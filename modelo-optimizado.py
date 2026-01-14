@@ -17,8 +17,8 @@ tf.config.threading.set_inter_op_parallelism_threads(4)
 
 # CONFIG (AJUSTADO A CPU)
 IMG_SIZE = 96          # reduce costo computacional
-BATCH_SIZE = 12         # crítico en CPU
-EPOCHS = 120            # EarlyStopping corta antes
+BATCH_SIZE = 16         # crítico en CPU
+EPOCHS = 180            # EarlyStopping corta antes
 LR = 3e-4
 
 DATA_PATH = "datos_entrenamiento/"
@@ -115,7 +115,7 @@ def ssim_loss(y_true, y_pred):
 def combined_loss(y_true, y_pred):
     mse = tf.reduce_mean(tf.square(y_true - y_pred))
     ssim = ssim_loss(y_true, y_pred)
-    return 0.7 * mse + 0.3 * ssim
+    return 0.5 * mse + 0.5 * ssim
 
 # Entrenamiento
 def main():
@@ -132,7 +132,7 @@ def main():
     callbacks = [
         EarlyStopping(
             monitor="val_loss",
-            patience=20,
+            patience=25,
             restore_best_weights=True
         ),
         ReduceLROnPlateau(
