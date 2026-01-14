@@ -7,7 +7,9 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint
 from sklearn.model_selection import train_test_split
 
-# Configuración para correr con CPU
+# =========================
+# CPU CONFIG
+# =========================
 os.environ["OMP_NUM_THREADS"] = "16"
 os.environ["TF_NUM_INTRAOP_THREADS"] = "16"
 os.environ["TF_NUM_INTEROP_THREADS"] = "4"
@@ -15,10 +17,12 @@ os.environ["TF_NUM_INTEROP_THREADS"] = "4"
 tf.config.threading.set_intra_op_parallelism_threads(16)
 tf.config.threading.set_inter_op_parallelism_threads(4)
 
-# CONFIG (AJUSTADO A CPU)
-IMG_SIZE = 96          # reduce costo computacional
-BATCH_SIZE = 16         # crítico en CPU
-EPOCHS = 160            # EarlyStopping corta antes
+# =========================
+# CONFIG
+# =========================
+IMG_SIZE = 96
+BATCH_SIZE = 16
+EPOCHS = 120
 LR = 3e-4
 
 DATA_PATH = "datos_entrenamiento/"
@@ -26,21 +30,19 @@ OUTPUT_DIR = "outputs"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # =========================
-# DEGRADATION FUNCTION
+# DEGRADATION (DENOISING TASK)
 # =========================
 def degrade_image(img):
     img = cv2.GaussianBlur(img, (3, 3), 0)
 
-    noise = np.random.normal(0, 3, img.shape)
+    noise = np.random.normal(0, 4, img.shape)
     img = img + noise
 
-    alpha = np.random.uniform(0.9, 1.1)
-    beta = np.random.uniform(-5, 5)
+    alpha = np.random.uniform(0.95, 1.05)
+    beta = np.random.uniform(-3, 3)
     img = cv2.convertScaleAbs(img, alpha=alpha, beta=beta)
 
     img = np.clip(img, 0, 255)
-    img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
-
     return img
 
 # =========================
@@ -60,9 +62,8 @@ def load_data():
             continue
 
         img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
-        
-        # Data augmentation x4
-        for _ in range(4):
+
+        for _ in range(4):  # augmentation x4
             degraded = degrade_image(img)
             X.append(degraded)
             y.append(img)
@@ -77,7 +78,9 @@ def load_data():
 
     return train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Modelo U-NET LIGERO
+# =========================
+# U-NET LIGERO
+# =========================
 def conv_block(x, filters):
     x = layers.Conv2D(filters, 3, padding="same", activation="relu")(x)
     x = layers.Conv2D(filters, 3, padding="same", activation="relu")(x)
@@ -106,23 +109,18 @@ def build_unet():
 
     return models.Model(inputs, outputs)
 
-# Loss ANTI-BLUR
-def ssim_loss(y_true, y_pred):
-    return 1 - tf.reduce_mean(
-        tf.image.ssim(y_true, y_pred, max_val=1.0)
-    )
-
+# =========================
+# LOSS (ESTABLE PARA DENOISING)
+# =========================
 def combined_loss(y_true, y_pred):
     mse = tf.reduce_mean(tf.square(y_true - y_pred))
-    ssim = 1 - tf.reduce_mean(
-        tf.image.ssim(y_true, y_pred, max_val=1.0)
-    )
-    return 0.8 * mse + 0.2 * ssim
+    return mse
 
-# Entrenamiento
+# =========================
+# TRAIN
+# =========================
 def main():
     X_tr, X_val, y_tr, y_val = load_data()
-
 
     model = build_unet()
     model.compile(
@@ -134,18 +132,18 @@ def main():
     callbacks = [
         EarlyStopping(
             monitor="val_loss",
-            patience=20,
+            patience=15,
             restore_best_weights=True
         ),
         ReduceLROnPlateau(
             monitor="val_loss",
-            patience=8,
+            patience=6,
             factor=0.5,
             min_lr=1e-6,
             verbose=1
         ),
         ModelCheckpoint(
-            os.path.join(OUTPUT_DIR, "best_model_cpu.h5"),
+            os.path.join(OUTPUT_DIR, "best_model_denoising.h5"),
             monitor="val_loss",
             save_best_only=True,
             verbose=1
