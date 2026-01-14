@@ -29,14 +29,14 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # DEGRADATION FUNCTION
 # =========================
 def degrade_image(img):
-    img = cv2.GaussianBlur(img, (5, 5), 0)
+    img = cv2.GaussianBlur(img, (3, 3), 0)
 
-    noise = np.random.normal(0, 10, img.shape)
+    noise = np.random.normal(0, 5, img.shape)
     img = img + noise
 
     h, w = img.shape
-    x = np.random.randint(0, w // 4)
-    y = np.random.randint(0, h // 4)
+    x = np.random.randint(0, w // 8)
+    y = np.random.randint(0, h // 8)
 
     img = img[y:y + int(0.8 * h), x:x + int(0.8 * w)]
     img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
