@@ -21,7 +21,9 @@ BATCH_SIZE = 8         # crítico en CPU
 EPOCHS = 30            # EarlyStopping corta antes
 LR = 1e-3
 
-DATA_PATH = "data/"
+DATA_PATH = "datos_entrenamiento/"
+OUTPUT_DIR = "outputs"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # =========================
 # DEGRADATION FUNCTION
@@ -137,7 +139,7 @@ def main():
             verbose=1
         ),
         ModelCheckpoint(
-            "best_model_cpu.h5",
+            os.path.join(OUTPUT_DIR, "best_model_cpu.h5"),
             monitor="val_loss",
             save_best_only=True,
             verbose=1
