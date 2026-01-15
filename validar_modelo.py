@@ -5,7 +5,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 
 IMG_SIZE = 96
-MODEL_PATH = "outputs/best_model_cpu.h5"
+MODEL_PATH = "outputs/best_model_denoising.h5"
 VAL_PATH = "Datos-Validacion/"
 
 def preprocess(img):
